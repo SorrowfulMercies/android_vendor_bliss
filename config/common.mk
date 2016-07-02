@@ -50,7 +50,11 @@ PRODUCT_PROPERTY_OVERRIDES += \
     ro.com.android.wifi-watchlist=GoogleGuest \
     ro.setupwizard.enterprise_mode=1 \
     ro.com.android.dateformat=MM-dd-yyyy \
-    ro.com.android.dataroaming=false
+    ro.com.android.dataroaming=false \
+    ro.setupwizard.network_required=false \
+    ro.setupwizard.gservices_delay=-1 \
+    dalvik.vm.image-dex2oat-filter=everything \
+    dalvik.vm.dex2oat-filter=everything
 
 PRODUCT_PROPERTY_OVERRIDES += \
     ro.build.selinux=1
@@ -66,11 +70,15 @@ ADDITIONAL_DEFAULT_PROPERTIES += ro.adb.secure=1
 endif
 
 # Backup Tool
+ifneq ($(WITH_GMS),true)
 PRODUCT_COPY_FILES += \
     vendor/bliss/prebuilt/common/bin/backuptool.sh:install/bin/backuptool.sh \
     vendor/bliss/prebuilt/common/bin/backuptool.functions:install/bin/backuptool.functions \
     vendor/bliss/prebuilt/common/bin/50-bliss.sh:system/addon.d/50-bliss.sh \
-    vendor/bliss/prebuilt/common/bin/blacklist:system/addon.d/blacklist
+    vendor/bliss/prebuilt/common/bin/blacklist:system/addon.d/blacklist \
+    vendor/bliss/prebuilt/common/bin/99-backup.sh:system/addon.d/99-backup.sh \
+    vendor/bliss/prebuilt/common/etc/backup.conf:system/etc/backup.conf
+endif
 
 # Signature compatibility validation
 PRODUCT_COPY_FILES += \
@@ -81,11 +89,24 @@ PRODUCT_COPY_FILES += \
     vendor/bliss/prebuilt/common/etc/init.d/00banner:system/etc/init.d/00banner \
     vendor/bliss/prebuilt/common/bin/sysinit:system/bin/sysinit
 
+# Proprietary latinime lib needed for Keyboard swyping
+PRODUCT_COPY_FILES += \
+    vendor/bliss/prebuilt/lib/libjni_latinimegoogle.so:system/lib/libjni_latinimegoogle.so
+
 ifneq ($(TARGET_BUILD_VARIANT),user)
 # userinit support
 PRODUCT_COPY_FILES += \
     vendor/bliss/prebuilt/common/etc/init.d/90userinit:system/etc/init.d/90userinit
 endif
+
+# fstrim support
+PRODUCT_COPY_FILES += \
+    vendor/bliss/prebuilt/common/etc/init.d/98fstrim:system/etc/init.d/98fstrim
+
+# SuperSU
+PRODUCT_COPY_FILES += \
+    vendor/bliss/prebuilt/common/UPDATE-SuperSU.zip:system/addon.d/UPDATE-SuperSU.zip \
+    vendor/bliss/prebuilt/common/etc/init.d/99SuperSUDaemon:system/etc/init.d/99SuperSUDaemon
 
 # AdAway App
 PRODUCT_COPY_FILES += \
@@ -95,9 +116,18 @@ PRODUCT_COPY_FILES += \
 PRODUCT_COPY_FILES += \
     vendor/bliss/prebuilt/common/app/KernelAdiutor.apk:system/app/KernelAdiutor/KernelAdiutor.apk
 
+# Blissful Wallpapers
+PRODUCT_COPY_FILES += \
+    vendor/bliss/prebuilt/common/app/BlissPapers.apk:system/app/BlissPapers/BlissPapers.apk
+
 # Bliss-specific init file
 PRODUCT_COPY_FILES += \
     vendor/bliss/prebuilt/common/etc/init.local.rc:root/init.cm.rc
+
+# Bring in camera effects
+PRODUCT_COPY_FILES +=  \
+    vendor/bliss/prebuilt/common/media/LMprec_508.emd:system/media/LMprec_508.emd \
+    vendor/bliss/prebuilt/common/media/PFFprec_600.emd:system/media/PFFprec_600.emd
 
 # Copy over added mimetype supported in libcore.net.MimeUtils
 PRODUCT_COPY_FILES += \
@@ -115,14 +145,20 @@ PRODUCT_COPY_FILES += \
 PRODUCT_COPY_FILES += \
     vendor/bliss/config/permissions/com.bliss.android.xml:system/etc/permissions/com.bliss.android.xml
 
-# Theme engine
-include vendor/bliss/config/themes_common.mk
+# T-Mobile theme engine
+-include vendor/bliss/config/themes_common.mk
 
 # Bliss Audio Mods
 -include vendor/bliss/config/bliss_audio_mod.mk
 
-# CMSDK
-include vendor/bliss/config/cmsdk_common.mk
+# RomStats
+#PRODUCT_PACKAGES += \
+#    RomStats
+
+# Screen recorder
+#PRODUCT_PACKAGES += \
+    #ScreenRecorder \
+    #libscreenrecorder
 
 # Required CM packages
 PRODUCT_PACKAGES += \
@@ -132,61 +168,71 @@ PRODUCT_PACKAGES += \
 
 # Optional CM packages
 PRODUCT_PACKAGES += \
+    VoicePlus \
+    Basic \
     libemoji \
     Terminal
 
-# Include librsjni explicitly to workaround GMS issue
-PRODUCT_PACKAGES += \
-    librsjni
-
 # Custom CM packages
 PRODUCT_PACKAGES += \
+    Snap \
+    Launcher3 \
     Trebuchet \
+    CMWallpapers \
     CMFileManager \
     Eleven \
     LockClock \
-    CMSettingsProvider \
-    CyanogenSetupWizard \
-    ExactCalculator \
-    LiveLockScreenService \
-    WeatherProvider \
-    DataUsageProvider
+    CMAccount \
+    CMHome \
+    MonthCalendarWidget
 
-# Exchange support
+# CM Platform Library
 PRODUCT_PACKAGES += \
-    Exchange2
+    org.cyanogenmod.platform-res \
+    org.cyanogenmod.platform \
+    org.cyanogenmod.platform.xml
+
+# CM Hardware Abstraction Framework
+PRODUCT_PACKAGES += \
+    org.cyanogenmod.hardware \
+    org.cyanogenmod.hardware.xml
 
 # Other packages
 PRODUCT_PACKAGES += \
-    BlissOTA \
-    CalendarWidget \
-    OmniSwitch
+    OmniSwitch \
+    BlissPapers \
+    BlissOTA
 
 # Extra tools in Bliss
 PRODUCT_PACKAGES += \
     libsepol \
+    e2fsck \
     mke2fs \
     tune2fs \
+    bash \
     nano \
     htop \
-    mkfs.ntfs \
-    fsck.ntfs \
-    mount.ntfs \
+    powertop \
+    lsof \
+    mount.exfat \
+    fsck.exfat \
+    mkfs.exfat \
+    mkfs.f2fs \
+    fsck.f2fs \
+    fibmap.f2fs \
+    ntfsfix \
+    ntfs-3g \
     gdbserver \
     micro_bench \
     oprofiled \
     sqlite3 \
-    strace \
-    pigz
+    strace
 
-WITH_EXFAT ?= true
-ifeq ($(WITH_EXFAT),true)
-TARGET_USES_EXFAT := true
+# Extra tools
 PRODUCT_PACKAGES += \
-    mount.exfat \
-    fsck.exfat \
-    mkfs.exfat
-endif
+    vim \
+    zip \
+    unrar
 
 # Openssh
 PRODUCT_PACKAGES += \
@@ -218,12 +264,17 @@ PRODUCT_PACKAGES += \
     procmem \
     procrank \
     su
+
+# HFM Files
+PRODUCT_COPY_FILES += \
+    vendor/bliss/prebuilt/etc/xtwifi.conf:system/etc/xtwifi.conf
+
 endif
 
 PRODUCT_PROPERTY_OVERRIDES += \
-    persist.sys.root_access=3
+    persist.sys.root_access=0
 
-DEVICE_PACKAGE_OVERLAYS += vendor/bliss/overlay/common
+PRODUCT_PACKAGE_OVERLAYS += vendor/bliss/overlay/common
 
 # by default, do not update the recovery with system updates
 PRODUCT_PROPERTY_OVERRIDES += persist.sys.recovery_update=false
@@ -231,31 +282,40 @@ PRODUCT_PROPERTY_OVERRIDES += persist.sys.recovery_update=false
 # BLISS Versioning System
 -include vendor/bliss/config/versions.mk
 
+-include $(WORKSPACE)/build_env/image-auto-bits.mk
+
+-include vendor/cyngn/product.mk
+
+$(call prepend-product-if-exists, vendor/extra/product.mk)
+
+# statistics identity
+#PRODUCT_PROPERTY_OVERRIDES += \
+#    ro.romstats.url=http://http://team.blissroms.com/RomStats/website/stats.php \
+#    ro.romstats.name=BlissPop \
+#    ro.romstats.version=$(BLISS_VERSION) \
+#    ro.romstats.askfirst=0 \
+#    ro.romstats.tframe=1
+
 PRODUCT_PROPERTY_OVERRIDES += \
     BUILD_DISPLAY_ID=$(BUILD_ID) \
     ro.bliss.version=$(BLISS_VERSION)
 
 # Team Bliss OTA Updater
 ifeq ($(BLISS_DONATE),)
-  BLISS_DONATE =: http://goo.gl/31q5YL
+  BLISS_DONATE =: http://goo.gl/tymMFo
 endif
 BLISS_OTA_BUILDDIR := Official
-ifeq ($(BLISS_BUILDTYPE),MAINTENANCE)
-  BLISS_OTA_BUILDDIR := Maintenance
+ifeq ($(BLISS_BUILDTYPE),NIGHTLY)
+  BLISS_OTA_BUILDDIR := Nightlies
 endif
-BLISS_BASE_URL    := http://downloads.blissroms.com/Bliss
+BLISS_BASE_URL    := http://downloads.blissroms.com/BlissPop
 ifeq ($(BLISS_DEVICE_URL),)
   BLISS_DEVICE_URL := $(BLISS_BASE_URL)/$(BLISS_OTA_BUILDDIR)/$(TARGET_DEVICE)
 endif
 BLISS_OTA_VERSION := $(shell date +%Y%m%d%H)
-BLISS_ROM_NAME    := Bliss
+BLISS_ROM_NAME    := BlissPop
 
-PRODUCT_PROPERTY_OVERRIDES += \
-    ro.ota.systemname=$(BLISS_ROM_NAME) \
-    ro.ota.version=$(BLISS_OTA_VERSION) \
-    ro.ota.device=$(TARGET_DEVICE) \
-    ro.ota.manifest=$(BLISS_DEVICE_URL)/ota$(BLISS_OTA_XMLVER).xml
-    
+# Lib For Webview
 ifeq ($(OTA_64),true)
 TARGET_ARCH_ABI := arm64-v8a
 TARGET_LIB_DIR := lib64
@@ -266,12 +326,34 @@ endif
 
 PRODUCT_COPY_FILES += \
     vendor/bliss/prebuilt/$(TARGET_LIB_DIR)/$(TARGET_ARCH_ABI)/libbypass.so:system/$(TARGET_LIB_DIR)/libbypass.so
-    
-# SuperSU
-PRODUCT_COPY_FILES += \
-    vendor/bliss/prebuilt/common/UPDATE-SuperSU.zip:system/addon.d/UPDATE-SuperSU.zip \
-    vendor/bliss/prebuilt/common/etc/init.d/99SuperSUDaemon:system/etc/init.d/99SuperSUDaemon
+
+ifndef CM_PLATFORM_SDK_VERSION
+  # This is the canonical definition of the SDK version, which defines
+  # the set of APIs and functionality available in the platform.  It
+  # is a single integer that increases monotonically as updates to
+  # the SDK are released.  It should only be incremented when the APIs for
+  # the new release are frozen (so that developers don't write apps against
+  # intermediate builds).
+  CM_PLATFORM_SDK_VERSION := 3
+endif
+
+PRODUCT_PROPERTY_OVERRIDES += \
+    ro.ota.systemname=$(BLISS_ROM_NAME) \
+    ro.ota.version=$(BLISS_OTA_VERSION) \
+    ro.ota.device=$(TARGET_DEVICE) \
+    ro.ota.manifest=$(BLISS_DEVICE_URL)/ota$(BLISS_OTA_XMLVER).xml
+
+export BLISS_OTA_ROM=$(BLISS_ROM_NAME)
+export BLISS_OTA_VERNAME=$(BLISS_VERSION)
+export BLISS_OTA_VER=$(BLISS_OTA_VERSION)
+export BLISS_OTA_URL=$(BLISS_DEVICE_URL)/$(BLISS_VERSION).zip
+
+# CyanogenMod Platform SDK Version
+PRODUCT_PROPERTY_OVERRIDES += \
+  ro.cm.build.version.plat.sdk=$(CM_PLATFORM_SDK_VERSION)
 
 -include $(WORKSPACE)/build_env/image-auto-bits.mk
+
+-include vendor/cyngn/product.mk
 
 $(call prepend-product-if-exists, vendor/extra/product.mk)
